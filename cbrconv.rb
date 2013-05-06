@@ -3,6 +3,7 @@
 require 'fileutils'
 
 RAR='/usr/bin/rar'
+UNZIP='/usr/bin/unzip'
 CONVERT='/usr/bin/convert'
 
 def check_command(command)
@@ -22,14 +23,15 @@ end
 
 ## Sanity check
 check_command(RAR)
+check_command(UNZIP)
 check_command(CONVERT)
 if ARGV.length < 1 
-  puts "Usage: #{__FILE__} file.cbr"
+  puts "Usage: #{__FILE__} file.[cbr|cbz]"
   exit 1
 end
 ## Starting work
 file = ARGV.shift
-destfile = file.gsub(/cbr/, 'pdf')
+destfile = file.gsub(/cbr|cbz/, 'pdf')
 tmpdir = "/tmp/#{file}.tmp"
 puts "Converting #{file} to PDF."
 
@@ -39,15 +41,24 @@ FileUtils.mkdir(tmpdir)
 puts "cleaned!"
 
 print "Unpacking file... "
-run_system_command("#{RAR} x \"#{file}\" -w \"#{tmpdir}\" 1>/dev/null")
+if (File.extname(file) == '.cbr')
+    run_system_command("#{RAR} x \"#{file}\" -w \"#{tmpdir}\" 1>/dev/null")
+elsif (File.extname(file) == '.cbz')
+    run_system_command("#{UNZIP} \"#{file}\" -d \"#{tmpdir}\" 1>/dev/null")
+else 
+  puts "Unknown file extension: #{File.extname(file)}"
+  exit 1
+end
 puts "done!"
 
+# TODO: handle pngs
 print "Grouping jpg files... "
 Dir.glob("#{tmpdir}/**/*.jpg").each { |item|
   FileUtils.mv(item, tmpdir) if File.dirname(item) != tmpdir
 }
 puts "done!"
 
+# TODO: handle pngs
 print "Creating PDF... "
 run_system_command("#{CONVERT} \"#{tmpdir}/*.jpg\" \"#{destfile}\"")
 puts " done!"
